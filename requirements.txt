@@ -1,0 +1,4 @@
+polars
+scipy
+matplotlib
+python-dotenv
