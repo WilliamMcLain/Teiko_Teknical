@@ -24,7 +24,7 @@ import os
 
 
 #csv file input 
-CSV_FILE = "data/cell-count.csv"
+CSV_FILE = "input/cell-count.csv"
 
 #database creation
 DB_FILE = "cell_counts.db"

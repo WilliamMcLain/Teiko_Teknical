@@ -9,6 +9,7 @@ Version: 4.0.0
 
 import sqlite3
 import os
+from datetime import datetime
 import polars as pl
 from scipy import stats
 import matplotlib
@@ -363,7 +364,8 @@ def avg_bcell_melanoma_male_responders(df: pl.DataFrame) -> float:
     Among melanoma males at baseline (time=0), compute the average raw
     b_cell count for responders only.
 
-    Filters applied on top of the baseline cohort already in df:
+    Expects df to already be the baseline cohort (melanoma | miraclib | PBMC
+    | time=0) — filters applied on top:
         - sex      = M
         - response = yes
 
@@ -400,13 +402,22 @@ def main():
             "Run `python load_data.py` first to create it."
         )
 
+    # Create timestamped output directory: outputs/YYYYMMDD_HHMMSS/
+    run_ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_dir  = os.path.join(script_dir, "outputs", run_ts)
+    os.makedirs(out_dir, exist_ok=True)
+    print(f"Output directory: {out_dir}")
+
     conn = sqlite3.connect(db_path)
     try:
         # --- Part 2 ---
         raw_df  = load_cell_counts(conn)
         freq_df = relative_frequency(raw_df)
         print_frequency_table(freq_df)
-        export_frequency_csv(freq_df, os.path.join(script_dir, "cell_frequencies.csv"))
+        export_frequency_csv(
+            freq_df,
+            os.path.join(out_dir, f"cell_frequencies_{run_ts}.csv")
+        )
 
         # --- Part 3 ---
         melanoma_df            = load_melanoma_miraclib_pbmc(conn)
@@ -414,11 +425,11 @@ def main():
         print_stats_table(stats_df)
         export_frequency_csv(
             resp_freq_df.select(["sample", "response", "population", "count", "percentage"]),
-            os.path.join(script_dir, "responder_frequencies.csv")
+            os.path.join(out_dir, f"responder_frequencies_{run_ts}.csv")
         )
         plot_boxplots(
             resp_freq_df, stats_df,
-            os.path.join(script_dir, "responder_boxplots.png")
+            os.path.join(out_dir, f"responder_boxplots_{run_ts}.png")
         )
 
         # --- Part 4 ---
@@ -426,10 +437,9 @@ def main():
         summarize_baseline(baseline_df)
         export_baseline_csv(
             baseline_df,
-            os.path.join(script_dir, "baseline_cohort.csv")
+            os.path.join(out_dir, f"baseline_cohort_{run_ts}.csv")
         )
 
-        #This is the answer as a print statement for the final question
         avg_bcell = avg_bcell_melanoma_male_responders(baseline_df)
         print(f"\nAverage B Cell count for melanoma male responders at time=0: {avg_bcell:.2f}")
 
