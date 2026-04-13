@@ -9,7 +9,7 @@ Version: 1.0.0
 
 import os
 import sqlite3
-from typing import Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -17,7 +17,8 @@ import polars as pl
 from scipy import stats as scipy_stats
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from repo root (one level up from backend/)
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 DB_FILE = os.getenv("DB_FILE", "cell_counts.db")
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), DB_FILE)
@@ -42,13 +43,13 @@ app.add_middleware(
 
 class GroupFilter(BaseModel):
     label: str                          # e.g. "Group A"
-    conditions: list[str]               # ["melanoma"], ["carcinoma"], ["melanoma","carcinoma"], ["healthy"]
-    treatments: list[str]               # ["miraclib"], ["phauximab"], ["miraclib","phauximab"], ["none"]
-    sample_types: list[str]             # ["PBMC"], ["WB"], ["PBMC","WB"]
-    sexes: list[str]                    # ["M"], ["F"], ["M","F"]
-    responses: list[str]                # ["yes"], ["no"], ["yes","no"]
-    time_points: list[int]              # [0], [7], [14], [0,7,14]
-    projects: list[str]                 # ["prj1"], ["prj1","prj2"], etc.
+    conditions: list[str]               # ["melanoma"], ["cancer"], ["healthy"], ["all"]
+    treatments: list[str]               # ["miraclib"], ["phauximab"], ["drug"], ["all"]
+    sample_types: list[str]             # ["PBMC"], ["WB"], ["all"]
+    sexes: list[str]                    # ["M"], ["F"], ["all"]
+    responses: list[str]                # ["yes"], ["no"], ["all"]
+    time_points: list[str]              # ["0"], ["7"], ["14"], ["all"] — always strings, coerced in resolve
+    projects: list[str]                 # ["prj1"], ["prj1+prj2"], ["all"]
     populations: list[str]              # subset of CELL_POPULATIONS
 
 
@@ -102,12 +103,15 @@ def build_query(f: GroupFilter) -> tuple[str, list]:
           AND sa.time_from_treatment_start  IN ({placeholders(f.time_points)})
           AND su.project_id                 IN ({placeholders(f.projects)})
     """
+    # Coerce time_points to int here — they arrive as strings from the model
+    time_points_int = [int(t) for t in f.time_points]
+
     params = (
         f.conditions
         + f.treatments
         + f.sample_types
         + f.sexes
-        + f.time_points
+        + time_points_int
         + f.projects
     )
 
@@ -258,10 +262,11 @@ def resolve_filter(f: GroupFilter) -> GroupFilter:
         ["yes", "no"] if "all" in f.responses else f.responses
     )
 
-    # Time points
-    resolved_time_points = (
-        [0, 7, 14] if "all" in [str(t) for t in f.time_points] else f.time_points
-    )
+    # Time points — keep as strings in GroupFilter, coerce to int only in build_query
+    if "all" in f.time_points:
+        resolved_time_points = ["0", "7", "14"]
+    else:
+        resolved_time_points = [str(t) for t in f.time_points]
 
     # Projects
     resolved_projects = []
@@ -297,6 +302,25 @@ def analyze(request: AnalysisRequest):
     """
     if not 1 <= len(request.groups) <= 4:
         raise HTTPException(status_code=400, detail="Between 1 and 4 groups required.")
+
+    # Validate each group has at least one value selected per field
+    REQUIRED_FIELDS = {
+        "conditions":   "Condition",
+        "treatments":   "Treatment",
+        "sample_types": "Sample Type",
+        "sexes":        "Sex",
+        "responses":    "Response",
+        "time_points":  "Time Point",
+        "projects":     "Project",
+        "populations":  "Cell Population",
+    }
+    for group in request.groups:
+        for field, label in REQUIRED_FIELDS.items():
+            if not getattr(group, field):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Nothing selected for '{label}' in group '{group.label}'. Please select at least one option."
+                )
 
     conn = get_conn()
     try:
@@ -420,26 +444,30 @@ def analyze(request: AnalysisRequest):
                     vals_i, vals_j, alternative="two-sided"
                 )
 
+                # Convert numpy scalars → Python native floats for JSON serialization
+                u_stat = float(u_stat)
+                p_raw  = float(p_raw)
+
                 # Rank-biserial correlation — effect size
                 n_i, n_j = len(vals_i), len(vals_j)
                 effect_size = round(1 - (2 * u_stat) / (n_i * n_j), 4)
 
-                p_corrected = min(p_raw * n_comparisons, 1.0) if apply_bonferroni else None
+                p_corrected = float(min(p_raw * n_comparisons, 1.0)) if apply_bonferroni else None
 
                 stats_rows.append({
-                    "population":       pop,
-                    "group_a":          group_data[i]["label"],
-                    "group_b":          group_data[j]["label"],
-                    "mean_a":           round(sum(vals_i) / len(vals_i), 4),
-                    "mean_b":           round(sum(vals_j) / len(vals_j), 4),
-                    "median_a":         round(sorted(vals_i)[len(vals_i) // 2], 4),
-                    "median_b":         round(sorted(vals_j)[len(vals_j) // 2], 4),
-                    "u_statistic":      round(u_stat, 2),
-                    "p_value_raw":      round(p_raw, 6),
+                    "population":        pop,
+                    "group_a":           group_data[i]["label"],
+                    "group_b":           group_data[j]["label"],
+                    "mean_a":            round(float(sum(vals_i) / len(vals_i)), 4),
+                    "mean_b":            round(float(sum(vals_j) / len(vals_j)), 4),
+                    "median_a":          round(float(sorted(vals_i)[len(vals_i) // 2]), 4),
+                    "median_b":          round(float(sorted(vals_j)[len(vals_j) // 2]), 4),
+                    "u_statistic":       round(u_stat, 2),
+                    "p_value_raw":       round(p_raw, 6),
                     "p_value_corrected": round(p_corrected, 6) if p_corrected is not None else None,
                     "bonferroni_applied": apply_bonferroni,
-                    "effect_size_rbc":  effect_size,
-                    "significant":      (p_corrected if apply_bonferroni else p_raw) < 0.05,
+                    "effect_size_rbc":   round(effect_size, 4),
+                    "significant":       bool((p_corrected if apply_bonferroni else p_raw) < 0.05),
                 })
 
         return {
