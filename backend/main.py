@@ -198,10 +198,9 @@ def get_filter_options():
             {"value": "all",                  "label": "All"},
         ],
         "time_points": [
-            {"value": 0,                      "label": "Baseline (0)"},
-            {"value": 7,                      "label": "Week 1 (7)"},
-            {"value": 14,                     "label": "Week 2 (14)"},
-            {"value": "all",                  "label": "All"},
+            {"value": "0",                    "label": "Baseline (0)"},
+            {"value": "7",                    "label": "Week 1 (7)"},
+            {"value": "14",                   "label": "Week 2 (14)"},
         ],
         "projects": [
             {"value": "prj1",                 "label": "Project 1"},

@@ -25,7 +25,7 @@ export interface GroupFilter {
   sample_types: string[]
   sexes:        string[]
   responses:    string[]
-  time_points:  (number | string)[]
+  time_points:  string[]              // always strings: "0", "7", "14", coerced by backend
   projects:     string[]
   populations:  string[]
 }
@@ -98,7 +98,7 @@ export interface AnalysisResponse {
 }
 
 export interface FilterOption {
-  value: string | number
+  value: string   // backend always returns strings
   label: string
 }
 

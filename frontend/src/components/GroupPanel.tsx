@@ -1,5 +1,5 @@
 import React from 'react'
-import type { GroupFilter, FilterOptions } from '../types'
+import type { GroupFilter, FilterOptions, FilterOption } from '../types'
 import { CELL_POPULATIONS, POPULATION_LABELS } from '../types'
 
 interface Props {
@@ -12,43 +12,77 @@ interface Props {
   canRemove:     boolean
 }
 
-// Helper — multi-select toggle
-function toggle(arr: string[], val: string): string[] {
-  return arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]
+// =============================================================================
+// All concrete (non-"all") values per field — used by the All toggle
+// =============================================================================
+const FIELD_ALL_VALUES: Record<string, string[]> = {
+  conditions:   ["melanoma", "carcinoma", "cancer", "healthy"],
+  treatments:   ["miraclib", "phauximab", "drug", "healthy"],
+  sample_types: ["PBMC", "WB"],
+  sexes:        ["M", "F"],
+  responses:    ["yes", "no"],
+  time_points:  ["0", "7", "14"],
+  projects:     ["prj1", "prj2", "prj3", "prj1+prj2", "prj2+prj3", "prj1+prj3"],
 }
 
-function toggleNum(arr: (number | string)[], val: number | string): (number | string)[] {
-  return arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]
+// Clicking "All" — select all if not all active, clear if all active
+function toggleAll(current: string[], field: string): string[] {
+  const allValues = FIELD_ALL_VALUES[field].map(String)
+  return isAllActive(current, field) ? [] : [...allValues]
 }
 
+function isAllActive(selected: string[], field: string): boolean {
+  return FIELD_ALL_VALUES[field].map(String).every(v => selected.includes(v))
+}
+
+// Clicking an individual chip
+function toggleOne(current: string[], val: string): string[] {
+  return current.includes(val)
+    ? current.filter(v => v !== val)
+    : [...current, val]
+}
+
+// =============================================================================
+// Sub-components
+// =============================================================================
 const Chip: React.FC<{
-  label:    string
-  active:   boolean
-  color:    string
-  onClick:  () => void
+  label:   string
+  active:  boolean
+  color:   string
+  onClick: () => void
 }> = ({ label, active, color, onClick }) => (
   <button
     onClick={onClick}
     style={{
-      padding:         '4px 10px',
-      borderRadius:    '999px',
-      border:          `1.5px solid ${active ? color : '#444'}`,
-      background:      active ? color + '22' : 'transparent',
-      color:           active ? color : '#aaa',
-      fontSize:        '12px',
-      cursor:          'pointer',
-      transition:      'all 0.15s',
-      fontFamily:      'DM Mono, monospace',
-      fontWeight:      active ? 600 : 400,
+      padding:      '4px 10px',
+      borderRadius: '999px',
+      border:       `1.5px solid ${active ? color : '#444'}`,
+      background:   active ? color + '22' : 'transparent',
+      color:        active ? color : '#888',
+      fontSize:     '12px',
+      cursor:       'pointer',
+      transition:   'all 0.15s',
+      fontFamily:   'DM Mono, monospace',
+      fontWeight:   active ? 600 : 400,
     }}
   >
     {label}
   </button>
 )
 
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+const Section: React.FC<{
+  title:    string
+  children: React.ReactNode
+}> = ({ title, children }) => (
   <div style={{ marginBottom: '12px' }}>
-    <div style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono, monospace' }}>
+    <div style={{
+      fontSize:      '10px',
+      color:         '#555',
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      marginBottom:  '6px',
+      fontFamily:    'DM Mono, monospace',
+    }}>
       {title}
     </div>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -57,8 +91,48 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
   </div>
 )
 
-export const GroupPanel: React.FC<Props> = ({ index, group, color, filterOptions, onChange, onRemove, canRemove }) => {
+// =============================================================================
+// GroupPanel
+// =============================================================================
+export const GroupPanel: React.FC<Props> = ({
+  group, color, filterOptions, onChange, onRemove, canRemove
+}) => {
   const update = (patch: Partial<GroupFilter>) => onChange({ ...group, ...patch })
+
+  // Generic field renderer — All chip + individual chips
+  function renderField(
+    field: keyof GroupFilter,
+    title: string,
+    options: FilterOption[],
+  ) {
+    const selected = group[field] as string[]
+    const allActive = isAllActive(selected, field as string)
+
+    return (
+      <Section title={title}>
+        <Chip
+          label="All"
+          color={color}
+          active={allActive}
+          onClick={() => update({ [field]: toggleAll(selected, field as string) })}
+        />
+        {options.map(opt => {
+          const val = String(opt.value)
+          return (
+            <Chip
+              key={val}
+              label={opt.label}
+              color={color}
+              active={selected.includes(val)}
+              onClick={() => update({ [field]: toggleOne(selected, val) })}
+            />
+          )
+        })}
+      </Section>
+    )
+  }
+
+  const allPopActive = CELL_POPULATIONS.every(p => group.populations.includes(p))
 
   return (
     <div style={{
@@ -66,111 +140,72 @@ export const GroupPanel: React.FC<Props> = ({ index, group, color, filterOptions
       border:       `1.5px solid ${color}44`,
       borderRadius: '12px',
       padding:      '16px',
-      position:     'relative',
       minWidth:     '260px',
       flex:         '1 1 260px',
     }}>
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+      <div style={{
+        display:       'flex',
+        alignItems:    'center',
+        justifyContent:'space-between',
+        marginBottom:  '14px',
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ width: 10, height: 10, borderRadius: '50%', background: color }} />
           <input
             value={group.label}
             onChange={e => update({ label: e.target.value })}
             style={{
-              background:  'transparent',
-              border:      'none',
+              background:   'transparent',
+              border:       'none',
               borderBottom: `1px solid ${color}66`,
-              color:       '#fff',
-              fontSize:    '14px',
-              fontFamily:  'DM Serif Display, serif',
-              fontWeight:  600,
-              outline:     'none',
-              width:       '120px',
+              color:        '#fff',
+              fontSize:     '14px',
+              fontFamily:   'DM Serif Display, serif',
+              fontWeight:   600,
+              outline:      'none',
+              width:        '120px',
             }}
           />
         </div>
         {canRemove && (
-          <button onClick={onRemove} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: '18px' }}>×</button>
+          <button
+            onClick={onRemove}
+            style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: '18px' }}
+          >
+            ×
+          </button>
         )}
       </div>
 
-      {/* Condition */}
-      <Section title="Condition">
-        {filterOptions.conditions.map(opt => (
-          <Chip key={opt.value} label={opt.label} color={color}
-            active={group.conditions.includes(String(opt.value))}
-            onClick={() => update({ conditions: toggle(group.conditions, String(opt.value)) })}
-          />
-        ))}
-      </Section>
+      {renderField('conditions',   'Condition',   filterOptions.conditions)}
+      {renderField('treatments',   'Treatment',   filterOptions.treatments)}
+      {renderField('sample_types', 'Sample Type', filterOptions.sample_types)}
+      {renderField('sexes',        'Sex',         filterOptions.sexes)}
+      {renderField('responses',    'Response',    filterOptions.responses)}
+      {renderField('time_points',  'Time Point',  filterOptions.time_points)}
+      {renderField('projects',     'Project',     filterOptions.projects)}
 
-      {/* Treatment */}
-      <Section title="Treatment">
-        {filterOptions.treatments.map(opt => (
-          <Chip key={opt.value} label={opt.label} color={color}
-            active={group.treatments.includes(String(opt.value))}
-            onClick={() => update({ treatments: toggle(group.treatments, String(opt.value)) })}
-          />
-        ))}
-      </Section>
-
-      {/* Sample Type */}
-      <Section title="Sample Type">
-        {filterOptions.sample_types.map(opt => (
-          <Chip key={opt.value} label={opt.label} color={color}
-            active={group.sample_types.includes(String(opt.value))}
-            onClick={() => update({ sample_types: toggle(group.sample_types, String(opt.value)) })}
-          />
-        ))}
-      </Section>
-
-      {/* Sex */}
-      <Section title="Sex">
-        {filterOptions.sexes.map(opt => (
-          <Chip key={opt.value} label={opt.label} color={color}
-            active={group.sexes.includes(String(opt.value))}
-            onClick={() => update({ sexes: toggle(group.sexes, String(opt.value)) })}
-          />
-        ))}
-      </Section>
-
-      {/* Response */}
-      <Section title="Response">
-        {filterOptions.responses.map(opt => (
-          <Chip key={opt.value} label={opt.label} color={color}
-            active={group.responses.includes(String(opt.value))}
-            onClick={() => update({ responses: toggle(group.responses, String(opt.value)) })}
-          />
-        ))}
-      </Section>
-
-      {/* Time Point */}
-      <Section title="Time Point">
-        {filterOptions.time_points.map(opt => (
-          <Chip key={opt.value} label={opt.label} color={color}
-            active={group.time_points.includes(opt.value)}
-            onClick={() => update({ time_points: toggleNum(group.time_points, opt.value) })}
-          />
-        ))}
-      </Section>
-
-      {/* Project */}
-      <Section title="Project">
-        {filterOptions.projects.map(opt => (
-          <Chip key={opt.value} label={opt.label} color={color}
-            active={group.projects.includes(String(opt.value))}
-            onClick={() => update({ projects: toggle(group.projects, String(opt.value)) })}
-          />
-        ))}
-      </Section>
-
-      {/* Cell Populations */}
+      {/* Cell Populations — separate because uses CELL_POPULATIONS constant */}
       <Section title="Cell Populations">
+        <Chip
+          label="All"
+          color={color}
+          active={allPopActive}
+          onClick={() => update({
+            populations: allPopActive ? [] : [...CELL_POPULATIONS]
+          })}
+        />
         {CELL_POPULATIONS.map(pop => (
-          <Chip key={pop} label={POPULATION_LABELS[pop]} color={color}
+          <Chip
+            key={pop}
+            label={POPULATION_LABELS[pop]}
+            color={color}
             active={group.populations.includes(pop)}
-            onClick={() => update({ populations: toggle(group.populations, pop) })}
+            onClick={() => update({
+              populations: toggleOne(group.populations, pop)
+            })}
           />
         ))}
       </Section>

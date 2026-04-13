@@ -9,6 +9,9 @@ export async function fetchFilterOptions(): Promise<FilterOptions> {
 }
 
 export async function runAnalysis(request: AnalysisRequest): Promise<AnalysisResponse> {
+  // Debug — log exact payload so we can see what's being sent
+  console.log('REQUEST PAYLOAD:', JSON.stringify(request, null, 2))
+
   const res = await fetch(`${BASE}/analyze`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
