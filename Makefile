@@ -10,7 +10,7 @@ setup:
 	pip install -r requirements.txt
 	cd frontend && npm install
 
-# Run full pipeline: initialize DB → load data → generate all outputs
+# Run full pipeline: initialize DB → load data → generate all outputs (Parts 1-4)
 pipeline:
 	python load_data.py
 	python analyze.py
@@ -18,4 +18,3 @@ pipeline:
 # Start FastAPI backend + React frontend dev server
 dashboard:
 	python dashboard.py
-
