@@ -12,39 +12,23 @@ interface Props {
   canRemove:     boolean
 }
 
-// =============================================================================
-// All concrete (non-"all") values per field — used by the All toggle
-// =============================================================================
-const FIELD_ALL_VALUES: Record<string, string[]> = {
-  conditions:   ["melanoma", "carcinoma", "cancer", "healthy"],
-  treatments:   ["miraclib", "phauximab", "drug", "healthy"],
-  sample_types: ["PBMC", "WB"],
-  sexes:        ["M", "F"],
-  responses:    ["yes", "no"],
-  time_points:  ["0", "7", "14"],
-  projects:     ["prj1", "prj2", "prj3", "prj1+prj2", "prj2+prj3", "prj1+prj3"],
+// The complete set of selectable values per field — source of truth for All toggle
+export const ALL_VALUES: Record<string, string[]> = {
+  conditions:   ['melanoma', 'carcinoma', 'cancer', 'healthy'],
+  treatments:   ['miraclib', 'phauximab', 'drug', 'healthy'],
+  sample_types: ['PBMC', 'WB'],
+  sexes:        ['M', 'F'],
+  responses:    ['yes', 'no'],
+  time_points:  ['0', '7', '14'],
+  projects:     ['prj1', 'prj2', 'prj3', 'prj1+prj2', 'prj2+prj3', 'prj1+prj3'],
 }
 
-// Clicking "All" — select all if not all active, clear if all active
-function toggleAll(current: string[], field: string): string[] {
-  const allValues = FIELD_ALL_VALUES[field].map(String)
-  return isAllActive(current, field) ? [] : [...allValues]
-}
-
-function isAllActive(selected: string[], field: string): boolean {
-  return FIELD_ALL_VALUES[field].map(String).every(v => selected.includes(v))
-}
-
-// Clicking an individual chip
 function toggleOne(current: string[], val: string): string[] {
   return current.includes(val)
     ? current.filter(v => v !== val)
     : [...current, val]
 }
 
-// =============================================================================
-// Sub-components
-// =============================================================================
 const Chip: React.FC<{
   label:   string
   active:  boolean
@@ -70,10 +54,7 @@ const Chip: React.FC<{
   </button>
 )
 
-const Section: React.FC<{
-  title:    string
-  children: React.ReactNode
-}> = ({ title, children }) => (
+const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div style={{ marginBottom: '12px' }}>
     <div style={{
       fontSize:      '10px',
@@ -91,22 +72,20 @@ const Section: React.FC<{
   </div>
 )
 
-// =============================================================================
-// GroupPanel
-// =============================================================================
 export const GroupPanel: React.FC<Props> = ({
   group, color, filterOptions, onChange, onRemove, canRemove
 }) => {
   const update = (patch: Partial<GroupFilter>) => onChange({ ...group, ...patch })
 
-  // Generic field renderer — All chip + individual chips
   function renderField(
     field: keyof GroupFilter,
     title: string,
     options: FilterOption[],
   ) {
-    const selected = group[field] as string[]
-    const allActive = isAllActive(selected, field as string)
+    const selected  = group[field] as string[]
+    const allVals   = ALL_VALUES[field as string]
+    // All is active when every value in ALL_VALUES for this field is selected
+    const allActive = allVals.every(v => selected.includes(v))
 
     return (
       <Section title={title}>
@@ -114,7 +93,7 @@ export const GroupPanel: React.FC<Props> = ({
           label="All"
           color={color}
           active={allActive}
-          onClick={() => update({ [field]: toggleAll(selected, field as string) })}
+          onClick={() => update({ [field]: allActive ? [] : [...allVals] })}
         />
         {options.map(opt => {
           const val = String(opt.value)
@@ -146,10 +125,10 @@ export const GroupPanel: React.FC<Props> = ({
 
       {/* Header */}
       <div style={{
-        display:       'flex',
-        alignItems:    'center',
-        justifyContent:'space-between',
-        marginBottom:  '14px',
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: 'space-between',
+        marginBottom:   '14px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ width: 10, height: 10, borderRadius: '50%', background: color }} />
@@ -173,9 +152,7 @@ export const GroupPanel: React.FC<Props> = ({
           <button
             onClick={onRemove}
             style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: '18px' }}
-          >
-            ×
-          </button>
+          >×</button>
         )}
       </div>
 
@@ -187,7 +164,7 @@ export const GroupPanel: React.FC<Props> = ({
       {renderField('time_points',  'Time Point',  filterOptions.time_points)}
       {renderField('projects',     'Project',     filterOptions.projects)}
 
-      {/* Cell Populations — separate because uses CELL_POPULATIONS constant */}
+      {/* Cell Populations */}
       <Section title="Cell Populations">
         <Chip
           label="All"
@@ -203,9 +180,7 @@ export const GroupPanel: React.FC<Props> = ({
             label={POPULATION_LABELS[pop]}
             color={color}
             active={group.populations.includes(pop)}
-            onClick={() => update({
-              populations: toggleOne(group.populations, pop)
-            })}
+            onClick={() => update({ populations: toggleOne(group.populations, pop) })}
           />
         ))}
       </Section>

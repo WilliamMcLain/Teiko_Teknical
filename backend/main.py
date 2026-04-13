@@ -180,22 +180,18 @@ def get_filter_options():
             {"value": "phauximab",            "label": "Phauximab"},
             {"value": "drug",                 "label": "Drug (Miraclib + Phauximab)"},
             {"value": "healthy",              "label": "Healthy (No Drug)"},
-            {"value": "all",                  "label": "All"},
         ],
         "sample_types": [
             {"value": "PBMC",                 "label": "PBMC"},
             {"value": "WB",                   "label": "WB"},
-            {"value": "all",                  "label": "All"},
         ],
         "sexes": [
             {"value": "M",                    "label": "Male"},
             {"value": "F",                    "label": "Female"},
-            {"value": "all",                  "label": "All"},
         ],
         "responses": [
             {"value": "yes",                  "label": "Responders"},
             {"value": "no",                   "label": "Non-Responders"},
-            {"value": "all",                  "label": "All"},
         ],
         "time_points": [
             {"value": "0",                    "label": "Baseline (0)"},
@@ -209,7 +205,6 @@ def get_filter_options():
             {"value": "prj1+prj2",            "label": "Project 1 + 2"},
             {"value": "prj2+prj3",            "label": "Project 2 + 3"},
             {"value": "prj1+prj3",            "label": "Project 1 + 3"},
-            {"value": "all",                  "label": "All"},
         ],
         "populations": [
             {"value": "b_cell",               "label": "B Cell"},

@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from 'react'
-import { GroupPanel } from './components/GroupPanel'
+import { GroupPanel, ALL_VALUES } from './components/GroupPanel'
 import { Charts } from './components/Charts'
 import { StatsTable } from './components/StatsTable'
 import { fetchFilterOptions, runAnalysis } from './api'
 import type { GroupFilter, AnalysisResponse, FilterOptions } from './types'
 import { GROUP_COLORS, CELL_POPULATIONS } from './types'
 
+// Built directly from ALL_VALUES — single source of truth, guaranteed to match
 const DEFAULT_GROUP = (index: number): GroupFilter => ({
   label:        `Group ${String.fromCharCode(65 + index)}`,
-  conditions:   ['melanoma'],
-  treatments:   ['miraclib'],
-  sample_types: ['PBMC'],
-  sexes:        ['M', 'F'],
-  responses:    ['yes', 'no'],
-  time_points:  [0, 7, 14],
-  projects:     ['all'],
+  conditions:   [...ALL_VALUES.conditions],
+  treatments:   [...ALL_VALUES.treatments],
+  sample_types: [...ALL_VALUES.sample_types],
+  sexes:        [...ALL_VALUES.sexes],
+  responses:    [...ALL_VALUES.responses],
+  time_points:  [...ALL_VALUES.time_points],
+  projects:     [...ALL_VALUES.projects],
   populations:  [...CELL_POPULATIONS],
 })
 
@@ -28,7 +29,11 @@ export default function App() {
 
   useEffect(() => {
     fetchFilterOptions()
-      .then(setFilterOptions)
+      .then(opts => {
+        setFilterOptions(opts)
+        // After filterOptions loads, reset groups so all chips are guaranteed active
+        setGroups([DEFAULT_GROUP(0)])
+      })
       .catch(() => setError('Could not connect to backend. Is the API running?'))
   }, [])
 
