@@ -6,8 +6,10 @@ A complete Python data pipeline and interactive dashboard for analyzing immune c
 
 ## Quick Start (GitHub Codespaces)
 
+Open a terminal in Codespaces and run these three commands in order:
+
 ```bash
-# 1. Install all dependencies
+# 1. Install all dependencies (Python + Node)
 make setup
 
 # 2. Run the full analysis pipeline (Parts 1-4)
@@ -17,29 +19,44 @@ make pipeline
 make dashboard
 ```
 
-Once `make dashboard` is running, open the **Ports** tab in Codespaces and click the globe icon next to port `5173`.
+Once `make dashboard` is running, open the **Ports** tab at the bottom of Codespaces and click the globe icon next to port `5173` to open the dashboard in your browser.
 
 ---
 
-## Setup Instructions
+## Prerequisites
 
-### Prerequisites
 - Python 3.11+
 - Node.js 18+ and npm
 
-### Environment Configuration
+Both are pre-installed in GitHub Codespaces.
 
-Create a `.env` file in the repo root:
-```
-CSV_FILE=data/cell-count.csv
-DB_FILE=cell_counts.db
-```
+---
 
-### Input Data
-Place the provided `cell-count.csv` file in the `data/` folder:
+## Repository Structure
+
 ```
-data/
-└── cell-count.csv
+.
+├── load_data.py          # Part 1 — schema init and CSV loading
+├── analyze.py            # Parts 2-4 — all analysis and outputs
+├── dashboard.py          # Entry point — starts backend and frontend
+├── backend/
+│   └── main.py           # FastAPI server — /api/filters and /api/analyze
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx           # Main layout and group state
+│   │   ├── api.ts            # Fetch wrappers
+│   │   ├── types.ts          # TypeScript interfaces
+│   │   └── components/
+│   │       ├── GroupPanel.tsx    # Filter chips per group
+│   │       ├── Charts.tsx        # Plotly histogram and boxplot
+│   │       └── StatsTable.tsx    # Cohort summary and stats table
+│   ├── package.json
+│   └── vite.config.ts        # Proxies /api to localhost:8000
+├── input/
+│   └── cell-count.csv        # Input data
+├── requirements.txt
+├── Makefile
+└── README.md
 ```
 
 ---
@@ -78,7 +95,7 @@ projects
 
 subjects
 ├── subject_id  TEXT  PRIMARY KEY
-├── project_id  TEXT  FK → projects
+├── project_id  TEXT  FK -> projects
 ├── condition   TEXT
 ├── age         INTEGER
 ├── sex         TEXT
@@ -87,13 +104,13 @@ subjects
 
 samples
 ├── sample_id                   TEXT  PRIMARY KEY
-├── subject_id                  TEXT  FK → subjects
+├── subject_id                  TEXT  FK -> subjects
 ├── sample_type                 TEXT
 └── time_from_treatment_start   INTEGER
 
 cell_counts
 ├── cell_count_id  INTEGER  PRIMARY KEY AUTOINCREMENT
-├── sample_id      TEXT     FK → samples (UNIQUE)
+├── sample_id      TEXT     FK -> samples (UNIQUE)
 ├── b_cell         INTEGER
 ├── cd8_t_cell     INTEGER
 ├── cd4_t_cell     INTEGER
@@ -103,7 +120,7 @@ cell_counts
 
 ### Rationale
 
-The schema is normalized into four tables reflecting the natural hierarchy of clinical trial data: **projects → subjects → samples → cell_counts**.
+The schema is normalized into four tables reflecting the natural hierarchy of clinical trial data: **projects -> subjects -> samples -> cell_counts**.
 
 Subject-level attributes (age, sex, condition, treatment, response) are stored once in `subjects` rather than repeated on every sample row. This eliminates redundancy and prevents update anomalies — if a subject's response classification changes, there is exactly one row to update.
 
@@ -122,36 +139,9 @@ Subject-level attributes (age, sex, condition, treatment, response) are stored o
 
 ---
 
-## Code Structure
+## Code Structure and Design Decisions
 
-```
-.
-├── load_data.py          # Part 1 — schema init and CSV loading
-├── analyze.py            # Parts 2-4 — all analysis and outputs
-├── dashboard.py          # Entry point — starts backend and frontend
-├── backend/
-│   └── main.py           # FastAPI server — /api/filters and /api/analyze
-├── frontend/
-│   ├── src/
-│   │   ├── App.tsx           # Main layout and group state
-│   │   ├── api.ts            # Fetch wrappers
-│   │   ├── types.ts          # TypeScript interfaces
-│   │   └── components/
-│   │       ├── GroupPanel.tsx    # Filter chips per group
-│   │       ├── Charts.tsx        # Plotly histogram and boxplot
-│   │       └── StatsTable.tsx    # Cohort summary and stats table
-│   ├── package.json
-│   └── vite.config.ts        # Proxies /api to localhost:8000
-├── data/
-│   └── cell-count.csv        # Input data
-├── requirements.txt
-├── Makefile
-└── .env
-```
-
-### Design Decisions
-
-**`load_data.py`** — single responsibility: schema initialization and CSV loading. Uses `INSERT OR IGNORE` so the script is safely re-runnable. All joins and deduplication happen in Python before any database writes.
+**`load_data.py`** — single responsibility: schema initialization and CSV loading. Uses `INSERT OR IGNORE` so the script is safely re-runnable without duplicating data. All deduplication happens in Python before any database writes.
 
 **`analyze.py`** — the key design decision is `relative_frequency()` at the top — a single reusable abstraction that both Part 2 (all samples) and Part 3 (filtered cohort) call with different inputs. This guarantees the percentage calculation is identical across both analyses and eliminates code duplication.
 
@@ -161,7 +151,7 @@ Subject-level attributes (age, sex, condition, treatment, response) are stored o
 
 **Why FastAPI + React** — the dashboard requires dynamic group comparison with up to 4 user-defined cohorts. A Python backend runs all scipy and polars computation and serves JSON to a React frontend which renders interactive Plotly charts. This separation means the heavy computation stays in Python while the UI stays responsive.
 
-**Filter discipline** — all cohort constraints are applied in SQL at load time to minimize memory usage, then re-enforced in the analysis functions themselves as a correctness guarantee.
+**Filter discipline** — all cohort constraints are applied in SQL at load time to minimize memory usage, then re-enforced in the analysis functions as a correctness guarantee.
 
 ---
 
@@ -181,7 +171,7 @@ Subject-level attributes (age, sex, condition, treatment, response) are stored o
 
 ## Dashboard
 
-The dashboard is accessible at `http://localhost:5173` after running `make dashboard`.
+The dashboard runs at `http://localhost:5173` after running `make dashboard`.
 
 **Features:**
 - Compare up to 4 user-defined cohorts simultaneously
@@ -192,7 +182,3 @@ The dashboard is accessible at `http://localhost:5173` after running `make dashb
 - Cohort summary showing N samples and N subjects per group
 
 **Dashboard link:** http://localhost:5173
-
-
-**Statement of Appreciation:** 
-- Lastly, I wanted to say thank you to the team at Teiko for taking the time to look into my application and this repository
