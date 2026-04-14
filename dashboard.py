@@ -18,6 +18,7 @@ import os
 import time
 import signal
 
+
 ROOT     = os.path.dirname(os.path.abspath(__file__))
 FRONTEND = os.path.join(ROOT, "frontend")
 BACKEND  = os.path.join(ROOT, "backend")
@@ -27,6 +28,7 @@ NPM = "npm.cmd" if sys.platform == "win32" else "npm"
 
 processes = []
 
+#shuts down all instances of server run
 def shutdown(sig, frame):
     print("\nShutting down servers...")
     for p in processes:
@@ -36,6 +38,7 @@ def shutdown(sig, frame):
 signal.signal(signal.SIGINT,  shutdown)
 signal.signal(signal.SIGTERM, shutdown)
 
+#Main frontend run
 def main():
     print("Starting Teiko Clinical Dashboard...\n")
 

@@ -2,32 +2,21 @@
 Main: Teiko Technical Assignment
 Sub: load_data.py
 
-
 Author: William McLain
 Date: 2026-04-12
-Version: 1.0.0
+Version: 1.1.0
 '''
 
-'''
-Requirements:
-The script must be named `load_data.py` and located in the root directory (not in subdirectories like `src/`).
- - When executed with `python load_data.py`, it should create a SQLite database file (`.db` extension) in the repository root.
-- The script should be executable directly without command-line arguments or module-style execution (`python -m`).
-'''
-
-
-#Imports and Libraries
 import sqlite3
 import csv
 import os
+from dotenv import load_dotenv
 
+# Load variables from .env file
+load_dotenv()
 
-
-#csv file input 
-CSV_FILE = "input/cell-count.csv"
-
-#database creation
-DB_FILE = "cell_counts.db"
+DB_FILE  = os.getenv("DB_FILE",  "cell_counts.db")
+CSV_FILE = os.getenv("CSV_FILE", "input/cell-count.csv")
 
 
 def init_db(conn):
@@ -153,7 +142,6 @@ def load_data(conn, csv_path):
     print(f"Loaded {len(cell_counts)} cell count record(s)")
 
 
-#main argument below avoids command line arguments
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     db_path  = os.path.join(script_dir, DB_FILE)

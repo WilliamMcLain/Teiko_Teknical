@@ -388,10 +388,21 @@ def analyze(request: AnalysisRequest):
                 )
                 sorted_vals = sorted(pct_values)
                 n = len(sorted_vals)
-                q1  = sorted_vals[n // 4]
-                med = sorted_vals[n // 2]
-                q3  = sorted_vals[(3 * n) // 4]
+
+                if n == 0:
+                    continue  # skip empty groups entirely
+
+                # Use numpy-style percentile indices that work for any n >= 1
+                def percentile(data: list, pct: float) -> float:
+                    idx = (len(data) - 1) * pct
+                    lo, hi = int(idx), min(int(idx) + 1, len(data) - 1)
+                    return data[lo] + (data[hi] - data[lo]) * (idx - lo)
+
+                q1  = percentile(sorted_vals, 0.25)
+                med = percentile(sorted_vals, 0.50)
+                q3  = percentile(sorted_vals, 0.75)
                 iqr = q3 - q1
+
                 pop_box["groups"].append({
                     "label":  g["label"],
                     "color":  g["color"],
@@ -402,7 +413,7 @@ def analyze(request: AnalysisRequest):
                     "iqr":    round(iqr, 4),
                     "min":    round(max(sorted_vals[0],  q1 - 1.5 * iqr), 4),
                     "max":    round(min(sorted_vals[-1], q3 + 1.5 * iqr), 4),
-                    "mean":   round(sum(pct_values) / len(pct_values), 4),
+                    "mean":   round(float(sum(pct_values) / len(pct_values)), 4),
                 })
             boxplot_data.append(pop_box)
 
