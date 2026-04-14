@@ -51,7 +51,7 @@ export const Charts: React.FC<Props> = ({ data, chartType }) => {
         const axis = i === 0 ? '' : String(i + 1)
         return [
           [`xaxis${axis}`, { title: { text: `${POPULATION_LABELS[pop] ?? pop} (%)`, font: { color: '#aaa', size: 11 } }, gridcolor: '#222', zerolinecolor: '#333', tickfont: { color: '#888' } }],
-          [`yaxis${axis}`, { title: { text: i === 0 ? 'Count' : '', font: { color: '#aaa', size: 11 } }, gridcolor: '#222', zerolinecolor: '#333', tickfont: { color: '#888' } }],
+          [`yaxis${axis}`, { title: { text: i === 0 ? 'Count (Patient)' : '', font: { color: '#aaa', size: 11 } }, gridcolor: '#222', zerolinecolor: '#333', tickfont: { color: '#888' } }],
         ]
       })),
       height: 380,
